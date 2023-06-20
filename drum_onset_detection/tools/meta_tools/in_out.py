@@ -36,8 +36,8 @@ def read_annotations(path: str):
     annotations = []
 
     for event in root.iter('event'):
-        annotations.append(Annotation(pitch=event[0].text,
-                                      onset_sec=event[1].text,
-                                      offset_sec=event[2].text,
+        annotations.append(Annotation(pitch=float(event[0].text),
+                                      onset_sec=float(event[1].text),
+                                      offset_sec=float(event[2].text),
                                       instrument=event[3].text))
     return annotations
