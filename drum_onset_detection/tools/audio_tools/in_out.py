@@ -3,7 +3,7 @@ import aubio
 
 import numpy as np
 
-from .validation import validate_path
+from ..misc_tools.validation import validate_path
 
 def init_audio(path: str, hop_size: int = 512) -> aubio.source:
     """
