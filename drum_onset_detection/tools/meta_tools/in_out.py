@@ -21,6 +21,11 @@ class Annotation():
     onset_sec: float
     instrument: str
 
+    def to_dict(self):
+        return {'pitch': self.pitch,
+                'onset_sec': self.onset_sec,
+                'instrument': self.instrument}
+
 
 def read_annotations_IDMT(path: str):
     """
