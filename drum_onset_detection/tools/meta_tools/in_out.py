@@ -61,9 +61,15 @@ def read_annotations_ADTOF(path: str):
     validate_path(path)
     annotations = []
 
+    midi_map = {'35': 'KD',
+                '38': 'SD',
+                '42': 'HH',
+                '47': 'TT',
+                '49': 'CC'}
+
     with open(path) as tsv:
         for line in csv.reader(tsv, delimiter="\t"):
             annotations.append(Annotation(pitch=None,
                                           onset_sec=float(line[0]),
-                                          instrument=line[1]))
+                                          instrument=midi_map[line[1]]))
     return annotations
