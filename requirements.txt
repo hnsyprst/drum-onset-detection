@@ -1,3 +1,4 @@
 aubio
 numpy
 matplotlib
+librosa
