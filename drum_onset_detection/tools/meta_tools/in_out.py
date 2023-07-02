@@ -4,7 +4,10 @@ import xml.etree.ElementTree as ET
 
 from dataclasses import dataclass
 
+import numpy as np
+
 from ..misc_tools.validation import validate_path
+from ..misc_tools.misc import seconds_to_samples, get_frame_index
 
 
 @dataclass(slots=True, frozen=True, kw_only=True)
@@ -68,3 +71,58 @@ def read_annotations_ADTOF(path: str):
                                           onset=float(line[0]),
                                           instrument=midi_map[line[1]]))
     return annotations
+
+
+def construct_annotation_matrix(annotations: list, audio: np.array, sr: int):
+    """
+    Construct a binary matrix to represent the presence of annotations
+     at each sample in a file.
+
+    :param annotations: (list) Placeholder
+    :param audio: (np.array) Placeholder
+    :param sr: (int) The sampling rate, in Hz.
+
+    :return: Placeholder
+    """
+    
+    # Get each unique instrument in our annotation
+    instruments = np.unique([annotation.instrument for annotation in annotations])
+    num_instruments = len(instruments)
+    index_instrument_mapping = dict(enumerate(instruments))
+
+    # Construct an empty array, the same size as our input audio
+    annotation_matrix = np.zeros_like(audio, dtype=bool)
+    # Stack this array `num_instruments` times, over the first axis
+    # We now have a matrix, in which each instrument has a single row of annotations
+    annotation_matrix = np.stack([annotation_matrix] * num_instruments, axis=0)
+    # We will populate each cell (or sample) in each row with `True` values
+    # if an Annotation is reporting an onset of that row's instrument at that sample
+    # and otherwise leave these values `False`.
+
+    # For each unique instrument...
+    for instrument_index, instrument in enumerate(instruments):
+        # ... get all of the Annotations containing this instrument
+        instrument_annotations = (annotation for annotation in annotations if annotation.instrument == instrument)
+        # For each Annotation containing our instrument...
+        for annotation in instrument_annotations:
+            # ... get the Annotation's onset in samples and set this sample `True`
+            onset_samples = seconds_to_samples(annotation.onset, sr)
+            annotation_matrix[instrument_index][onset_samples] = True
+    return annotation_matrix, index_instrument_mapping
+
+
+def annotations_list_to_frames(annotations: list[Annotation], frame_len: int, sr: int, duration: int):
+    """
+    Split a list of annotations into 
+    """
+    
+    # Get number of frames to divide into by ceil div
+    n_frames = -(duration // -frame_len)
+    annotation_frames = [[] for _ in range(n_frames)]
+
+    for annotation in annotations:
+        onset_samples = seconds_to_samples(annotation.onset, sr)
+        frame_index = get_frame_index(onset_samples, duration, frame_len)
+        annotation_frames[frame_index].append(annotation)
+
+    return annotation_frames

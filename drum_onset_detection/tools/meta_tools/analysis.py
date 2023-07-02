@@ -5,7 +5,9 @@ def get_bpm(source: source):
     """
     Calculate the beats per minute (bpm) of a given audio track.
 
-    :param source: (aubio.source) aubio.source object (try audio_tools.in_out.init_audio())
+    :param source: (aubio.source) aubio.source object (try using audio_tools.in_out.init_audio()).
+
+    :return: (float) BPM of the audio track.
     """
     t = tempo("specdiff", samplerate=source.samplerate)
     # List of beats, in samples

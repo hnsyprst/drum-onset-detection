@@ -11,3 +11,21 @@ def seconds_to_samples(seconds: float, sr: int):
     """
 
     return round(seconds * sr)
+
+
+def get_frame_index(sample: int, duration: int, frame_len: int):
+    """
+    Given a sample within a duration to be divided into frames of length frame_len, find the index
+    of the frame containing the given sample.
+
+    :param sample: (int) Sample to locate.
+    :param duration: (int) Duration containing sample.
+    :param frame_len: (int) The length of each frame that duration will be divided into.
+
+    :return: (int) The index of the frame containing the given sample.
+    """
+
+    assert sample <= duration, f"Sample must be within duration. Got {sample} > {duration}."
+    # Get number of frames to divide into by ceil div
+    n_frames = -(duration // -frame_len)
+    return 1 + sample // (duration // n_frames) if sample >= 0 else 0
