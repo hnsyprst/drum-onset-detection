@@ -111,9 +111,17 @@ def construct_annotation_matrix(annotations: list, audio: np.array, sr: int):
     return annotation_matrix, index_instrument_mapping
 
 
-def annotations_list_to_frames(annotations: list[Annotation], frame_len: int, sr: int, duration: int):
+def annotations_list_to_frames(annotations: list[Annotation], duration: int, frame_len: int, sr: int):
     """
-    Split a list of annotations into 
+    Divide a list of annotations into a list of frames containing annotations.
+     This is so that audio frames and annotation frames match up.
+
+    :param annotations: (list[Annotation]) A list of annotations.
+    :param duration: (int) Duration of annotated audio.
+    :param frame_len: (int) The length of each frame that duration will be divided into.
+    :param sr: (int) Sampling rate of the annotated audio.
+
+    :return: (list[list[Annotation | None]]) The annotations divided into frames.
     """
     
     # Get number of frames to divide into by ceil div
@@ -126,3 +134,30 @@ def annotations_list_to_frames(annotations: list[Annotation], frame_len: int, sr
         annotation_frames[frame_index].append(annotation)
 
     return annotation_frames
+
+
+def annotation_frames_to_one_hot(annotation_frames: list[list[Annotation | None]], classes: list):
+    """
+    Construct a one-hot representation of a list of frames containing annotations.
+
+    :param annotation_frames: (list[list[Annotation | None]]) A list of frames containing annotations.
+    :param classes: (list) List of possible classes, in the order they will appear in the one-hot representation.
+    """
+
+    one_hot = []
+    n_classes = len(classes)
+    # Convert list of classes to dict for O(1) mapping of class name to one-hot index
+    classes = {class_name: idx for idx, class_name in enumerate(classes)}
+
+    # For each annotation frame...
+    for annotation_frame in annotation_frames:
+        # ... Create an empty one-hot representation
+        frame = [0 for _ in range(n_classes)]
+        # If there are annotations in this frame, amend the empty one-hot representation
+        if annotation_frame is not None:
+            for annotation in annotation_frame:
+                frame[classes[annotation.instrument]] = 1
+        # append the final one-hot representation to the list
+        one_hot.append(frame)
+
+    return one_hot

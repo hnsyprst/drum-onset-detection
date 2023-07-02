@@ -22,8 +22,10 @@ class ADTOFDataset(Dataset):
         # FIXME: A better way to handle this assert might be to check that every audio file has an annotation ahead of time
         assert len(self.audio_files) == len(self.annotation_files), f'Number of audio files and number of annotations must be the same. Got {len(self.audio_files)=}, {len(self.annotation_files)=}'
 
+
     def __len__(self):
         return len(self.audio_files)
+    
     
     def __getitem__(self, idx):
         # TODO: Check that all matching audio files and annotations have the same indices, or work around this
