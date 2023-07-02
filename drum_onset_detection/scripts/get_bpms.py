@@ -32,7 +32,7 @@ def _update(*path):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('data_folder', metavar='Data folder', help="Directory containing files to analysis")
+    parser.add_argument('data_folder', metavar='Data folder', help="Directory containing files to analyse")
     parser.add_argument('output_path', metavar='Output path', help="Path to write BPMs")
     args = parser.parse_args()
 
