@@ -26,10 +26,7 @@ class ADTOFDataset(Dataset):
         self.audio_files = [file for file in self.audio_files if file.stem in [a_file.stem for a_file in self.annotation_files]]
         # Ensure that only annotations with respective audio files are loaded
         self.annotation_files = [file for file in self.annotation_files if file.stem in [a_file.stem for a_file in self.audio_files]]
-        # FIXME: Add a function to log missing files
-        
-        # FIXME: A better way to handle this assert might be to check that every audio file has an annotation ahead of time
-        assert len(self.audio_files) == len(self.annotation_files), f'Number of audio files and number of annotations must be the same. Got {len(self.audio_files)=}, {len(self.annotation_files)=}'
+        # FIXME: Add a method for logging missing files
 
 
     def __len__(self):
