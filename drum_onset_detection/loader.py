@@ -33,14 +33,16 @@ class ADTOFDataset(Dataset):
         # FIXME: This should be a param of the class, and files outside the specified SR should be resampled or discarded
         audio_sr = source.samplerate
         audio_frames_np, sr = audio_tools.in_out.read_audio(source, read_frames=True)
+        audio_frames_np = audio_frames_np[:2756]
         audio_frames = torch.FloatTensor(audio_frames_np)
 
         # Read targets
         targets_frames_np = np.load(files[1])
+        # TODO: Stop cropping like this and come up with a better way
+        targets_frames_np = targets_frames_np[:2756]
         targets_frames = torch.from_numpy(targets_frames_np)
 
         assert files[0].stem == files[1].stem
-
         return audio_frames, targets_frames
     
 

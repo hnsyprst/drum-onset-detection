@@ -10,7 +10,8 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "justMyCode": true
+            "justMyCode": true,
+            "args": ["f:/Work2/drum-onset-detection/data/ADTOF-master/dataset", "10"]
         }
     ]
 }
