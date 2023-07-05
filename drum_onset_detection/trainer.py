@@ -4,7 +4,7 @@ import torch
 
 from pathlib import Path
 
-from models import recurrent
+from models import convolutional
 import loader
 
 
@@ -57,9 +57,11 @@ if __name__ == "__main__":
     data_folder = Path(args.data_folder)
     n_epochs = int(args.n_epochs)
 
-    model = recurrent.RecurrentModel()
+    model = convolutional.StreamingConvNet()
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     loss_fn = torch.nn.MSELoss()
     loaders = loader.create_dataloaders(data_folder, 0.05, 0.9, 512, 8, True)
 
     train(model, optimizer, loss_fn, loaders, n_epochs)
+
+    # TODO: Reshape input to 3d
