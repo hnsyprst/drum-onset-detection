@@ -9,7 +9,7 @@ class AutoConv2d(nn.Module):
                                                     out_channels=out_channels,
                                                     kernel_size=kernel_size,
                                                     stride=stride,
-                                                    padding=stride//2),
+                                                    padding=(stride[0]//2, 0)),
                                         nn.ReLU(inplace=True)
         ))
     
@@ -20,12 +20,13 @@ class AutoConv2d(nn.Module):
 class StreamingConvNet(nn.Module):
     def __init__(self):
         super().__init__()
-        self.conv1 = AutoConv2d(in_channels=1, out_channels=16, kernel_size=7, stride=3) # out = 918 x 170 x 16
-        self.conv2 = AutoConv2d(in_channels=16, out_channels=32, kernel_size=5, stride=2) #      458 x 84 x 32
-        self.conv3 = AutoConv2d(in_channels=32, out_channels=64, kernel_size=7, stride=3) #      152 x 27 x 64
-        self.conv4 = AutoConv2d(in_channels=64, out_channels=64, kernel_size=5, stride=3) #      50 x 9 x 64
-        self.conv5 = AutoConv2d(in_channels=64, out_channels=64, kernel_size=7, stride=2) #      23 x 2 x 64
-        self.dense = nn.Linear(in_features=2944, out_features=5)
+        self.conv1 = AutoConv2d(in_channels=1,  out_channels=16, kernel_size=(1, 7), stride=(1, 3)) # out = 918, 170, 16
+        self.conv2 = AutoConv2d(in_channels=16, out_channels=32, kernel_size=(1, 5), stride=(1, 2)) #       458, 84,  32
+        self.conv3 = AutoConv2d(in_channels=32, out_channels=64, kernel_size=(1, 7), stride=(1, 3)) #       152, 27,  64
+        self.conv4 = AutoConv2d(in_channels=64, out_channels=64, kernel_size=(1, 5), stride=(1, 3)) #       50,  9,   64
+        #self.conv5 = AutoConv2d(in_channels=64, out_channels=64, kernel_size=(7, 1), stride=(2, 1)) #      23,  2,   64
+        #self.pool1 = nn.AdaptiveAvgPool2d((1, 32)) # 64, 1, 32
+        self.dense = nn.Linear(in_features=512, out_features=5) # Fixed for frame_len = 512 TODO: Unfix 
         self.relu = nn.ReLU()
 
     def forward(self, input):
@@ -33,8 +34,10 @@ class StreamingConvNet(nn.Module):
         output = self.conv2(output)
         output = self.conv3(output)
         output = self.conv4(output)
-        output = self.conv5(output)
-        output = torch.flatten(output)
+        #output = self.conv5(output)
+        #output = self.pool1(output)
+        output = output.transpose(1, 2)
+        output = torch.flatten(output, start_dim=2)
         output = self.dense(output)
         output = self.relu(output)
         return output
