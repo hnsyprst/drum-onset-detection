@@ -5,6 +5,7 @@ from pathlib import Path
 import numpy as np
 
 import torch
+import librosa
 from torch.utils.data import Dataset, DataLoader
 
 from tools import audio_tools, meta_tools, misc_tools
@@ -33,17 +34,22 @@ class ADTOFDataset(Dataset):
         # FIXME: This should be a param of the class, and files outside the specified SR should be resampled or discarded
         audio_sr = source.samplerate
         audio_frames_np, sr = audio_tools.in_out.read_audio(source, read_frames=True)
-        audio_frames_np = audio_frames_np[:2756, :] # Maybe fix to 2756
+        # TODO: Stop cropping like this and come up with a better way
+        audio_frames_np = audio_frames_np[:2756, :]
         audio_frames = torch.FloatTensor(audio_frames_np)
         audio_frames = audio_frames.unsqueeze(0)
+        # stft_frames_np = np.array([librosa.stft(frame, n_fft=512) for frame in audio_frames_np])
+        # stft_frames = torch.FloatTensor(np.abs(stft_frames_np))
+        # stft_frames = stft_frames.unsqueeze(0)
 
         # Read targets
         targets_frames_np = np.load(files[1]).astype(np.float32)
         # TODO: Stop cropping like this and come up with a better way
-        targets_frames_np = targets_frames_np[:2756, :] # Maybe fix to 2756
+        targets_frames_np = targets_frames_np[:2756, :]
         targets_frames = torch.from_numpy(targets_frames_np)
 
         assert files[0].stem == files[1].stem
+        # return audio_frames, targets_frames
         return audio_frames, targets_frames
     
 

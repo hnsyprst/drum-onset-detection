@@ -11,7 +11,7 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "justMyCode": true,
-            "args": ["f:/Work2/drum-onset-detection/data/ADTOF-master/dataset", "10"]
+            "args": ["f:/Work2/drum-onset-detection/data/ADTOF-master/dataset", "10", "--gpu"]
         }
     ]
 }
