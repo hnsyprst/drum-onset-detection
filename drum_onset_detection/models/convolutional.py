@@ -128,3 +128,7 @@ class TFDConvNet(nn.Module):
         output = self.dense(output)
         #output = self.relu(output)
         return output
+    
+
+class miniMobileNet(nn.Module):
+    

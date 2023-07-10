@@ -16,6 +16,8 @@ def predict_batch(model, loss_fn, inputs_batch, targets_batch, device, t, mode, 
     inputs_batch = inputs_batch.to(device)
     targets_batch = targets_batch.to(device)
     preds_batch = model(inputs_batch)
+    # threshold = torch.tensor([0.4]).to(device)
+    # preds_batch = (preds_batch > threshold).float()
 
     loss = loss_fn(preds_batch, targets_batch)
     sw.add_scalar(f"{mode}/loss", loss, t.n)

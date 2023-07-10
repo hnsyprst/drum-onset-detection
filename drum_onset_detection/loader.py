@@ -53,6 +53,44 @@ class ADTOFDataset(Dataset):
         return audio_frames, targets_frames
     
 
+class ADTOFFramesDataset(Dataset):
+    def __init__(self,
+                 audio_files: list,
+                 annotation_files: list,
+                 frame_len: int):
+        self.audio_files = audio_files
+        self.annotation_files = annotation_files
+        self.frame_len = frame_len
+
+
+    def __len__(self):
+        return len(self.audio_files)
+    
+    
+    def __getitem__(self, idx):
+        # TODO: Check that all matching audio files and annotations have the same indices, or work around this
+
+        files = (self.audio_files[idx], self.annotation_files[idx])
+
+        # Read audio
+        source = audio_tools.in_out.init_audio(files[0], hop_size=self.frame_len)
+        # FIXME: This should be a param of the class, and files outside the specified SR should be resampled or discarded
+        audio_sr = source.samplerate
+        audio_frames_np, sr = audio_tools.in_out.read_audio(source, read_frames=True)
+        audio_frames = torch.FloatTensor(audio_frames_np)
+        # stft_frames_np = np.array([librosa.stft(frame, n_fft=512) for frame in audio_frames_np])
+        # stft_frames = torch.FloatTensor(np.abs(stft_frames_np))
+        # stft_frames = stft_frames.unsqueeze(0)
+
+        # Read targets
+        targets_frames_np = np.load(files[1]).astype(np.float32)
+        targets_frames = torch.from_numpy(targets_frames_np)
+
+        assert files[0].stem == files[1].stem
+        # return audio_frames, targets_frames
+        return audio_frames, targets_frames
+    
+
 def discard_missing_files(audio_files: list[Path], annotation_files: list[Path]):
     """
     Ensure that only audio files with respective annotations are loaded, and vice versa.
