@@ -3,92 +3,67 @@ import random
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 
 import torch
 import librosa
 from torch.utils.data import Dataset, DataLoader
 
 from tools import audio_tools, meta_tools, misc_tools
-
-class ADTOFDataset(Dataset):
-    def __init__(self,
-                 audio_files: list,
-                 annotation_files: list,
-                 frame_len: int):
-        self.audio_files = audio_files
-        self.annotation_files = annotation_files
-        self.frame_len = frame_len
-
-
-    def __len__(self):
-        return len(self.audio_files)
-    
-    
-    def __getitem__(self, idx):
-        # TODO: Check that all matching audio files and annotations have the same indices, or work around this
-
-        files = (self.audio_files[idx], self.annotation_files[idx])
-
-        # Read audio
-        source = audio_tools.in_out.init_audio(files[0], hop_size=self.frame_len)
-        # FIXME: This should be a param of the class, and files outside the specified SR should be resampled or discarded
-        audio_sr = source.samplerate
-        audio_frames_np, sr = audio_tools.in_out.read_audio(source, read_frames=True)
-        # TODO: Stop cropping like this and come up with a better way
-        audio_frames_np = audio_frames_np[:2756, :]
-        audio_frames = torch.FloatTensor(audio_frames_np)
-        audio_frames = audio_frames.unsqueeze(0)
-        # stft_frames_np = np.array([librosa.stft(frame, n_fft=512) for frame in audio_frames_np])
-        # stft_frames = torch.FloatTensor(np.abs(stft_frames_np))
-        # stft_frames = stft_frames.unsqueeze(0)
-
-        # Read targets
-        targets_frames_np = np.load(files[1]).astype(np.float32)
-        # TODO: Stop cropping like this and come up with a better way
-        targets_frames_np = targets_frames_np[:2756, :]
-        targets_frames = torch.from_numpy(targets_frames_np)
-
-        assert files[0].stem == files[1].stem
-        # return audio_frames, targets_frames
-        return audio_frames, targets_frames
     
 
 class ADTOFFramesDataset(Dataset):
     def __init__(self,
-                 audio_files: list,
-                 annotation_files: list,
-                 frame_len: int):
-        self.audio_files = audio_files
-        self.annotation_files = annotation_files
+                 audio_dir: Path,
+                 annotation_dir: Path,
+                 frame_len: int,
+                 durations: pd.DataFrame):
+        self.audio_dir = audio_dir
+        self.annotation_dir = annotation_dir
         self.frame_len = frame_len
+        self.durations = durations
+        
+        # Calculate total number of frames in the dataset
+        self.dataset_len = self.durations['duration'].sum() / frame_len
 
 
     def __len__(self):
-        return len(self.audio_files)
+        return self.dataset_len
+    
+
+    def idx_to_frame(self, idx):
+        return (idx + 1) * self.frame_len
     
     
     def __getitem__(self, idx):
-        # TODO: Check that all matching audio files and annotations have the same indices, or work around this
+        frame_start_sample = self.idx_to_frame(idx)
+        audio_path_idx = self.durations['cum_duration'].searchsorted(frame_start_sample)
+        audio_path = self.audio_dir / self.durations['file_name'].iloc[audio_path_idx]
+        # Read frame
+        source = audio_tools.in_out.init_audio(audio_path, hop_size=self.frame_len)
+        audio_frame_np, sr = audio_tools.in_out.read_frame(source, frame_start_sample)
+        audio_frame = torch.FloatTensor(audio_frame_np)
 
-        files = (self.audio_files[idx], self.annotation_files[idx])
+        # Read target
+        target_path = self.targets_dir / self.durations['file_name'].iloc[audio_path_idx]
+        target_frame_np = np.load(target_path).astype(np.float32)
+        target_frame = torch.from_numpy(target_frame_np)
 
-        # Read audio
-        source = audio_tools.in_out.init_audio(files[0], hop_size=self.frame_len)
-        # FIXME: This should be a param of the class, and files outside the specified SR should be resampled or discarded
-        audio_sr = source.samplerate
-        audio_frames_np, sr = audio_tools.in_out.read_audio(source, read_frames=True)
-        audio_frames = torch.FloatTensor(audio_frames_np)
-        # stft_frames_np = np.array([librosa.stft(frame, n_fft=512) for frame in audio_frames_np])
-        # stft_frames = torch.FloatTensor(np.abs(stft_frames_np))
-        # stft_frames = stft_frames.unsqueeze(0)
+        return audio_frame, target_frame
+    
 
-        # Read targets
-        targets_frames_np = np.load(files[1]).astype(np.float32)
-        targets_frames = torch.from_numpy(targets_frames_np)
+def prepare_durations_dataframe(metadata_dir: Path, frame_len: int):
+    """
+    
+    """
+    # Load durations metadata
+    durations = pd.read_csv(metadata_dir / 'durations.csv', names=['file_name', 'duration'])
+    # Round all durations up to the nearest frame_len, as frames will be zero-padded when read
+    durations['duration'] = durations['duration'].apply(lambda x: np.ceil(x / frame_len) * frame_len)
+    # Create cumulative sum column
+    durations['cum_duration'] = durations['duration'].cumsum()
 
-        assert files[0].stem == files[1].stem
-        # return audio_frames, targets_frames
-        return audio_frames, targets_frames
+    return durations
     
 
 def discard_missing_files(audio_files: list[Path], annotation_files: list[Path]):
@@ -164,7 +139,7 @@ def create_dataloaders(data_folder: Path, test_ratio: float, train_ratio: float,
         audio_files = split_audio_files[split]
         annotation_files = split_annotation_files[split]
 
-        dataset = ADTOFDataset(audio_files, annotation_files, frame_len)
+        dataset = ADTOFFramesDataset(audio_files, annotation_files, frame_len)
         shuffle_split = shuffle if split != 'test' else False
         dataloaders[split] = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle_split)
 

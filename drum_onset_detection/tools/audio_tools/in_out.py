@@ -26,9 +26,31 @@ def init_audio(path: str, hop_size: int = 512) -> aubio.source:
     return source
 
 
+def read_frame(source: aubio.source, frame_start_sample: int, close: bool = True) -> tuple:
+    """
+    Read a single frame of an audio file from the disc via an aubio.source object.
+
+    Note that if `source.duration % source.hop_size != 0`,
+     the remainder will be zero-padded.
+
+    :param source: (aubio.source) An aubio.source object containing a reference to an audio file on the disc.
+    :param frame_start_sample: (int) The sample index at which the frame to be read starts.
+    :param close: (bool) If true, call `source.close()` once reading is complete.
+
+    :return: (tuple) 0. The audio file, as a Numpy array.
+                     1. The audio file's sample rate.
+    """
+    source.seek(frame_start_sample)
+    frame, sr = source()
+
+    if close:
+        source.close()
+    return frame, sr
+
+
 def read_audio(source: aubio.source, read_frames: bool = False, close: bool = True) -> tuple:
     """
-    Read an audio file from the disc via an aubio.source object.
+    Read an entire audio file from the disc via an aubio.source object.
 
     Note that if `source.duration % source.hop_size != 0`,
      the remainder will be zero-padded.
