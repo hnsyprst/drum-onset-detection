@@ -89,7 +89,8 @@ if __name__ == "__main__":
     label_weights = torch.tensor([0.059, 0.15, 0.214, 0.281, 0.296]).to(device)
     pos_weights = torch.tensor([76.04548784316461, 98.72052530284162, 61.23326264342795, 333.7409675443968, 199.35948788294468]).to(device)
     loss_fn = torch.nn.BCEWithLogitsLoss(weight=label_weights, pos_weight=pos_weights)
-    loaders = loader.create_dataloaders(data_folder, 0.05, 0.9, 512, 8, True)
+    #loss_fn = torch.nn.BCEWithLogitsLoss()
+    loaders = loader.create_dataloaders(data_folder, 0.05, 0.9, 512, 128, True)
 
     # TensorBoard
     now = datetime.now()

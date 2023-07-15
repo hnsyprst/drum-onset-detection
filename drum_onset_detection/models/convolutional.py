@@ -69,8 +69,8 @@ class TFDConvNet(nn.Module):
 
     def forward(self, input):
         output = self.stft(input)
-        output_mag = torch.abs(output)
-        output = self.conv1(output_mag)
+        #output_mag = torch.abs(output) # 8, 1, 5, 257
+        output = self.conv1(output)
         output = self.conv2(output)
         output = self.conv3(output)
         output = self.pool(output)
@@ -79,5 +79,8 @@ class TFDConvNet(nn.Module):
         return output
     
 
-# class miniMobileNet(nn.Module):
+class miniMobileNet(nn.Module):
+    def __init__(self):
+        super().__init__()
+
     
