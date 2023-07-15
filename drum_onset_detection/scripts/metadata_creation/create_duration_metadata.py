@@ -2,7 +2,6 @@ import argparse
 import time
 import os
 import sys
-import threading
 
 import numpy as np
 import pandas as pd
@@ -12,15 +11,15 @@ from pathlib import Path
 from functools import partial
 
 sys.path.append('..')
-from drum_onset_detection.tools.audio_tools.in_out import init_audio, read_audio
+from drum_onset_detection.tools.audio_tools.in_out import init_audio
 
 def calculate_duration(audio_path: Path, durations: dict):
     """
-    Load an audio file at audio_path, divide into into frames of length frame_len,
-     and save each frame as an individual .npy file.
+    Load an audio file at audio_path, calculate the file's duration, and append
+     this information to the durations dictionary.
 
     :param audio_path: (Path) Path to audio file.
-    :param out_dir: (Path) Directory to write files.
+    :param durations: (Path) Dictionary to add calculated duration to.
     """
 
     audio_name = audio_path.stem
@@ -36,7 +35,6 @@ def parallel_process_files(files: list[Path]):
     :param files: (Path) List of paths to audio files.
     """
 
-    # TODO: Add results of calculate_duration to a list and return the final list from this function
     durations = {}
     duration_fn = partial(calculate_duration, durations=durations)
     thread_map(duration_fn, files, max_workers=os.cpu_count(), desc="Calculating durations")
@@ -48,10 +46,10 @@ def process(in_dir: Path, out_path: Path):
     Puts the path to each file in in_dir in a list, and calls parallel_process_files()
      to calculate the duration of each file into using multiprocessing.
 
-    :param files: (Path) List of paths to audio files.
+    :param in_dir: (Path) Directory containing audio to process.
+    :param out_path: (Path) Path to write metadata.
     """
 
-    # TODO: Write results from parallel_process_files to a file at out_path
     files = list(in_dir.glob('*.wav'))
 
     start_time = time.perf_counter()
@@ -70,9 +68,6 @@ if __name__ == '__main__':
     parser.add_argument('in_dir', metavar='Audio directory', help="Directory containing audio to process")
     parser.add_argument('out_path', metavar='Output path', help="Path to write metadata")
     args = parser.parse_args()
-
-    # global lock
-    # lock = threading.lock()
 
     in_dir = Path(args.in_dir)
     out_path = Path(args.out_path)
