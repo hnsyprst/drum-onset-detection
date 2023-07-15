@@ -1,13 +1,16 @@
 import argparse
 import time
 import os
+import sys
 
 import numpy as np
 
-from tqdm.contrib.concurrent import process_map
+from tqdm.contrib.concurrent import thread_map
 from pathlib import Path
 from functools import partial
-from tools.audio_tools.in_out import init_audio, read_audio
+
+sys.path.append('..')
+from drum_onset_detection.tools.audio_tools.in_out import init_audio, read_audio
 
 def export_individual_frames(audio_path: Path, out_dir: Path, frame_len: int):
     """
@@ -36,12 +39,13 @@ def parallel_process_files(files: list[Path], out_dir: Path, frame_len: int):
     """
 
     export_fn = partial(export_individual_frames, out_dir=out_dir, frame_len=frame_len)
-    process_map(export_fn, files, max_workers=os.cpu_count(), desc="Creating audio frames")
+    thread_map(export_fn, files, max_workers=os.cpu_count(), desc="Creating audio frames")
 
 
 def process(in_dir: Path, out_dir: Path, frame_len: int):
     """
-    Divides audio files into frames using multiprocessing.
+    Puts the path to each file in in_dir in a list, and calls parallel_process_files()
+     to divide each file into frames using multiprocessing.
 
     :param files: (Path) Directory containing audio files to divide into frames.
     :param out_dir: (Path) Directory to write files.
@@ -63,4 +67,7 @@ if __name__ == '__main__':
     parser.add_argument('frame_len', metavar='Frame length', help="The length of each frame to divide audio into (should be the same as the intended frame_len for the annotations).", type=int)
     args = parser.parse_args()
 
-    
+    in_dir = Path(args.in_dir)
+    out_dir = Path(args.out_dir)
+
+    process(in_dir, out_dir, args.frame_len)
