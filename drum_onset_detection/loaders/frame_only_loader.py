@@ -30,13 +30,9 @@ class ADTOFFramesDataset(Dataset):
     def __len__(self):
         return self.dataset_len
     
-
-    def idx_to_frame(self, idx):
-        return (idx + 1) * self.frame_len
-    
     
     def __getitem__(self, idx):
-        frame_start_sample = self.idx_to_frame(idx)
+        frame_start_sample = idx_to_frame(idx, self.frame_len)
         audio_path_idx = self.durations['cum_duration'].searchsorted(frame_start_sample)
         audio_path = self.audio_dir / self.durations['file_name'].iloc[audio_path_idx]
         # Read frame
@@ -50,6 +46,12 @@ class ADTOFFramesDataset(Dataset):
         target_frame = torch.from_numpy(target_frame_np)
 
         return audio_frame, target_frame
+    
+def idx_to_frame(idx, frame_len):
+    """
+    Placeholder
+    """
+    return (idx + 1) * frame_len
     
 
 def prepare_durations_dataframe(metadata_dir: Path, frame_len: int):
@@ -87,38 +89,33 @@ def discard_missing_files(durations: pd.DataFrame, audio_dir: Path, annotations_
     return durations.drop(durations[not (audio_dir / durations['file_name']).exists() or not (annotations_dir / durations['file_name']).exists()])
     
 
-def test_train_valid_split(durations: pd.DataFrame, test_ratio: float, train_ratio: float, shuffle: bool = True):
+def test_train_valid_split(durations: pd.DataFrame, frame_len: int, test_ratio: float, train_ratio: float, shuffle: bool = True):
     """
     Placeholder
     """
-
-    # # Lists to NumPy
-    # audio_files = np.array(audio_files)
-    # annotation_files = np.array(annotation_files)
-
-    # split_audio_files = {}
-    # split_annotation_files = {}
     
-    # # Create test split
-    # # TODO: Make a script for creating a test split rather than doing this on the fly (further ensuring that this split is permanent)
-    # num_files = len(audio_files)
-    # num_test_files = round(num_files * test_ratio, 0)
-    # split_audio_files['test'], audio_files = np.split(audio_files, [int(len(audio_files) * test_ratio)])
-    # split_annotation_files['test'], annotation_files = np.split(annotation_files, [int(len(annotation_files) * test_ratio)])
+    dataset_len = durations['duration'].sum() / frame_len
 
-    # # Create train and valid split
-    # if shuffle:
-    #     temp = list(zip(audio_files, annotation_files))
-    #     random.shuffle(temp)
-    #     audio_files, annotation_files = zip(*temp)
-    #     # audio_files and annotation_files come out as tuples, and so must be converted to lists.
-    #     audio_files, annotation_files = list(audio_files), list(annotation_files)
-    # split_audio_files['valid'], split_audio_files['train'] = np.split(audio_files, [int(len(audio_files) * test_ratio)])
-    # split_annotation_files['valid'], split_annotation_files['train'] = np.split(annotation_files, [int(len(annotation_files) * test_ratio)])
+    # Create test split
+    num_test_frames = dataset_len * test_ratio
+    final_test_frame_start_sample = idx_to_frame(num_test_frames, frame_len)
+    test_cutoff_idx = durations['cum_duration'].searchsorted(final_test_frame_start_sample)
 
-    # return split_audio_files, split_annotation_files
+    test_durations = durations.iloc[:test_cutoff_idx]
+    train_valid_durations = durations.iloc[test_cutoff_idx:]
 
-    
+    # Create train and valid splits
+    num_train_frames = dataset_len * train_ratio
+    final_train_frame_start_sample = idx_to_frame(num_train_frames, frame_len)
+    train_cutoff_idx = durations['cum_duration'].searchsorted(final_train_frame_start_sample)
+
+    train_durations = durations.iloc[:train_cutoff_idx]
+    valid_durations = durations.iloc[train_cutoff_idx:]
+
+    return {'test': test_durations,
+            'train': train_durations,
+            'valid': valid_durations}
+
     
 
 def create_dataloaders(data_folder: Path, test_ratio: float, train_ratio: float, frame_len: int, batch_size: int, shuffle: bool = True):
@@ -135,7 +132,7 @@ def create_dataloaders(data_folder: Path, test_ratio: float, train_ratio: float,
     durations = discard_missing_files(durations, audio_dir, annotations_dir)
     
     # Split the dataset into test, train and valid sets of inputs and targets
-    split_durations = test_train_valid_split(durations, test_ratio, train_ratio, shuffle)
+    split_durations = test_train_valid_split(durations, frame_len, test_ratio, train_ratio, shuffle)
 
     dataloaders = {}
 
