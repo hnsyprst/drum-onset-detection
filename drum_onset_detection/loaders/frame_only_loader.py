@@ -35,24 +35,32 @@ class ADTOFFramesDataset(Dataset):
     
     def __getitem__(self, idx):
         # TODO: Find a way to get the index of the desired sample within the file
-        frame_start_sample_from_total = idx_to_frame(idx, self.frame_len)
-        path_idx = self.durations['cum_duration'].searchsorted(frame_start_sample_from_total, 'right')
-        frame_start_sample_in_file = int(self.durations['cum_duration'].iloc[path_idx] - frame_start_sample_from_total)
+        #frame_start_sample_from_total = idx_to_frame(idx, self.frame_len)
+        path_idx = self.durations['cum_frames'].searchsorted(idx, side='right')
+        # if path_idx > 0:
+        #     frame_start_sample = int((idx - self.durations['cum_frames'].iloc[path_idx - 1]) * self.frame_len)
+        # else:
+        #     frame_start_sample = int(idx * self.frame_len)
+
+        previous_frames = int(self.durations['cum_frames'].iat[path_idx - 1] if path_idx > 0 else 0)
+        frame_idx_in_file = int(idx - previous_frames)
+        frame_start_sample = int(frame_idx_in_file * self.frame_len)
 
         # Read frame
-        audio_path = self.audio_dir / (self.durations['file_name'].iloc[path_idx + 1] + '.wav')
+        audio_path = self.audio_dir / (self.durations['file_name'].iloc[path_idx] + '.wav')
         source = audio_tools.in_out.init_audio(audio_path, hop_size=self.frame_len)
-        audio_frame_np, sr = audio_tools.in_out.read_frame(source, frame_start_sample_in_file)
+        audio_frame_np, sr = audio_tools.in_out.read_frame(source, frame_start_sample)
         audio_frame = torch.FloatTensor(audio_frame_np)
 
         # Read target
-        target_path = self.annotations_dir / (self.durations['file_name'].iloc[path_idx + 1] + '.npy')
+        target_path = self.annotations_dir / (self.durations['file_name'].iloc[path_idx] + '.npy')
         target_np = np.load(target_path).astype(np.float32)
-        frame_idx = int(frame_start_sample_in_file / self.frame_len)
-        target_frame_np = target_np[frame_idx]
+        frame_idx = int(frame_start_sample / self.frame_len)
+        target_frame_np = target_np[frame_idx_in_file]
         target_frame = torch.from_numpy(target_frame_np)
 
         return audio_frame, target_frame
+
     
 def idx_to_frame(idx, frame_len):
     """
@@ -61,10 +69,9 @@ def idx_to_frame(idx, frame_len):
     return int((idx + 1) * frame_len)
     
 
-def prepare_durations_dataframe(metadata_dir: Path, frame_len: int):
+def prepare_durations_dataframe(durations: pd.DataFrame, frame_len: int):
     """
-    Load in a CSV file called 'durations.csv' in the directory metadata_dir and prepares it
-     for dataloader use.
+    Prepares durations dataframe for dataloader use.
 
     :param metadata_dir: (Path) Directory containing 'durations.csv'.
     :param frame_len: (int) Length of frame to divide each audio file into.
@@ -72,12 +79,12 @@ def prepare_durations_dataframe(metadata_dir: Path, frame_len: int):
     :return: (pd.DataFrame) Dataframe formatted for dataloader use. 
     """
 
-    # Load durations metadata
-    durations = pd.read_csv(metadata_dir / 'durations.csv', names=['file_name', 'duration'])
     # Round all durations up to the nearest frame_len, as frames will be zero-padded when read
     durations['duration'] = durations['duration'].apply(lambda x: np.ceil(x / frame_len) * frame_len)
+    durations['num_frames'] = durations['duration'].apply(lambda x: x / frame_len)
     # Create cumulative sum column
     durations['cum_duration'] = durations['duration'].cumsum()
+    durations['cum_frames'] = durations['num_frames'].cumsum()
 
     return durations
     
@@ -137,8 +144,10 @@ def create_dataloaders(data_folder: Path, test_ratio: float, train_ratio: float,
     annotations_dir = data_folder / 'annotations/one_hot/' / str(frame_len)
     metadata_dir = data_folder / 'audio/'
 
-    durations = prepare_durations_dataframe(metadata_dir, frame_len)
+    # Load durations metadata
+    durations = pd.read_csv(metadata_dir / 'durations.csv', names=['file_name', 'duration'])
     durations = discard_missing_files(durations, audio_dir, annotations_dir)
+    durations = prepare_durations_dataframe(durations, frame_len)
     
     # Split the dataset into test, train and valid sets of inputs and targets
     split_durations = test_train_valid_split(durations, frame_len, test_ratio, train_ratio, shuffle)
