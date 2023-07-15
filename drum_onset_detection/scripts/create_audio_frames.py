@@ -19,7 +19,7 @@ def export_individual_frames(audio_path: Path, out_dir: Path, frame_len: int):
 
     :param audio_path: (Path) Path to audio file.
     :param out_dir: (Path) Directory to write files.
-    :param frame_len: (Path) Length of frame to divide each audio file into.
+    :param frame_len: (int) Length of frame to divide each audio file into.
     """
 
     audio_name = audio_path.stem
@@ -35,7 +35,7 @@ def parallel_process_files(files: list[Path], out_dir: Path, frame_len: int):
 
     :param files: (Path) List of paths to audio files.
     :param out_dir: (Path) Directory to write files.
-    :param frame_len: (Path) Length of frame to divide each audio file into.
+    :param frame_len: (int) Length of frame to divide each audio file into.
     """
 
     export_fn = partial(export_individual_frames, out_dir=out_dir, frame_len=frame_len)
@@ -49,7 +49,7 @@ def process(in_dir: Path, out_dir: Path, frame_len: int):
 
     :param files: (Path) Directory containing audio files to divide into frames.
     :param out_dir: (Path) Directory to write files.
-    :param frame_len: (Path) Length of frame to divide each audio file into.
+    :param frame_len: (int) Length of frame to divide each audio file into.
     """
 
     files = list(in_dir.glob('*.wav'))
