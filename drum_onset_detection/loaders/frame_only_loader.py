@@ -1,4 +1,5 @@
 import random
+import sys
 
 from pathlib import Path
 
@@ -9,6 +10,7 @@ import torch
 import librosa
 from torch.utils.data import Dataset, DataLoader
 
+sys.path.append('..')
 from tools import audio_tools, meta_tools, misc_tools
     
 
@@ -24,7 +26,7 @@ class ADTOFFramesDataset(Dataset):
         self.durations = durations
         
         # Calculate total number of frames in the dataset
-        self.dataset_len = self.durations['duration'].sum() / frame_len
+        self.dataset_len = int(self.durations['duration'].sum() / frame_len)
 
 
     def __len__(self):
@@ -32,17 +34,22 @@ class ADTOFFramesDataset(Dataset):
     
     
     def __getitem__(self, idx):
-        frame_start_sample = idx_to_frame(idx, self.frame_len)
-        audio_path_idx = self.durations['cum_duration'].searchsorted(frame_start_sample)
-        audio_path = self.audio_dir / self.durations['file_name'].iloc[audio_path_idx]
+        # TODO: Find a way to get the index of the desired sample within the file
+        frame_start_sample_from_total = idx_to_frame(idx, self.frame_len)
+        path_idx = self.durations['cum_duration'].searchsorted(frame_start_sample_from_total, 'right')
+        frame_start_sample_in_file = int(self.durations['cum_duration'].iloc[path_idx] - frame_start_sample_from_total)
+
         # Read frame
+        audio_path = self.audio_dir / (self.durations['file_name'].iloc[path_idx + 1] + '.wav')
         source = audio_tools.in_out.init_audio(audio_path, hop_size=self.frame_len)
-        audio_frame_np, sr = audio_tools.in_out.read_frame(source, frame_start_sample)
+        audio_frame_np, sr = audio_tools.in_out.read_frame(source, frame_start_sample_in_file)
         audio_frame = torch.FloatTensor(audio_frame_np)
 
         # Read target
-        target_path = self.targets_dir / self.durations['file_name'].iloc[audio_path_idx]
-        target_frame_np = np.load(target_path).astype(np.float32)
+        target_path = self.annotations_dir / (self.durations['file_name'].iloc[path_idx + 1] + '.npy')
+        target_np = np.load(target_path).astype(np.float32)
+        frame_idx = int(frame_start_sample_in_file / self.frame_len)
+        target_frame_np = target_np[frame_idx]
         target_frame = torch.from_numpy(target_frame_np)
 
         return audio_frame, target_frame
@@ -51,7 +58,7 @@ def idx_to_frame(idx, frame_len):
     """
     Placeholder
     """
-    return (idx + 1) * frame_len
+    return int((idx + 1) * frame_len)
     
 
 def prepare_durations_dataframe(metadata_dir: Path, frame_len: int):
@@ -86,7 +93,11 @@ def discard_missing_files(durations: pd.DataFrame, audio_dir: Path, annotations_
     :return: Placeholder
     """
     # TODO: Add a method for logging missing files
-    return durations.drop(durations[not (audio_dir / durations['file_name']).exists() or not (annotations_dir / durations['file_name']).exists()])
+
+    def paths_exist(file_name):
+        return (audio_dir / (file_name + '.wav')).exists() and (annotations_dir / (file_name + '.npy')).exists()
+
+    return durations[durations['file_name'].apply(paths_exist)]
     
 
 def test_train_valid_split(durations: pd.DataFrame, frame_len: int, test_ratio: float, train_ratio: float, shuffle: bool = True):
@@ -112,9 +123,7 @@ def test_train_valid_split(durations: pd.DataFrame, frame_len: int, test_ratio: 
     train_durations = durations.iloc[:train_cutoff_idx]
     valid_durations = durations.iloc[train_cutoff_idx:]
 
-    return {'test': test_durations,
-            'train': train_durations,
-            'valid': valid_durations}
+    return {'test': test_durations, 'train': train_durations, 'valid': valid_durations}
 
     
 
@@ -125,7 +134,7 @@ def create_dataloaders(data_folder: Path, test_ratio: float, train_ratio: float,
 
     # Prepare paths
     audio_dir = data_folder / 'audio/audio/'
-    annotations_dir = data_folder / 'annotations/one_hot/'    
+    annotations_dir = data_folder / 'annotations/one_hot/' / str(frame_len)
     metadata_dir = data_folder / 'audio/'
 
     durations = prepare_durations_dataframe(metadata_dir, frame_len)
@@ -137,7 +146,7 @@ def create_dataloaders(data_folder: Path, test_ratio: float, train_ratio: float,
     dataloaders = {}
 
     # Iterate over the split dataset
-    for durations, split in split_durations.items():
+    for split, durations in split_durations.items():
         dataset = ADTOFFramesDataset(audio_dir, annotations_dir, frame_len, durations)
         shuffle_split = shuffle if split != 'test' else False
         dataloaders[split] = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle_split)

@@ -1,4 +1,6 @@
+#%%
 import argparse
+import sys
 
 import torch
 from torch.utils.tensorboard import SummaryWriter
@@ -9,7 +11,7 @@ from torchmetrics import Accuracy, Precision
 from datetime import datetime
 
 from models import convolutional
-import loader
+from loaders import frame_only_loader as loader
 
 
 def predict_batch(model, loss_fn, inputs_batch, targets_batch, device, t, mode, sw):
@@ -21,9 +23,6 @@ def predict_batch(model, loss_fn, inputs_batch, targets_batch, device, t, mode, 
 
     loss = loss_fn(preds_batch, targets_batch)
     sw.add_scalar(f"{mode}/loss", loss, t.n)
-
-    preds_batch = torch.flatten(preds_batch, start_dim=0, end_dim=1)
-    targets_batch = torch.flatten(targets_batch, start_dim=0, end_dim=1)
 
     precision = Precision(task='multilabel', average='macro', num_labels=5).to(device)
     precision_value = precision(preds_batch, targets_batch)
@@ -68,6 +67,9 @@ def train(model, optimizer, loss_fn, loaders, n_epochs, device, sw):
             loss = predict_batch(model, loss_fn, inputs_batch, targets_batch, device, t, "test", sw)
 
 if __name__ == "__main__":
+    # Simulate arguments
+    sys.argv = [sys.argv[0], 'f:/Work2/drum-onset-detection/data/ADTOF-master/dataset', '10', '--gpu']
+
     parser = argparse.ArgumentParser(prog="trainer.py",
                                      description="Train a model.")
     parser.add_argument('data_folder', help='Path to folder containing data')
