@@ -22,7 +22,7 @@ def get_one_hot(classes: list, frame_len: int, annotations_path: Path | str, aud
     :param audio_path: (Path | str) Path to the corresponding audio file.
     :param out_path: (Path | str) Path to write the constructed one-hot representation.
     """
-
+    # TODO: Handle NaNs / Nones
     # Get audio duration
     source = audio_tools.in_out.init_audio(audio_path)
     duration = source.duration

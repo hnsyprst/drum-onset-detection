@@ -9,7 +9,7 @@ import pandas as pd
 
 import torch
 import librosa
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler
 
 sys.path.append('..')
 from tools import audio_tools, meta_tools, misc_tools
@@ -150,7 +150,36 @@ def test_train_valid_split(durations: pd.DataFrame, frame_len: int, test_ratio: 
 
     return {'test': test_durations, 'train': train_durations, 'valid': valid_durations}
 
-    
+
+def get_sample_weights(annotations_df: pd.DataFrame, dataset_len: int):
+    label_counts = [annotations_df[col].sum() for col in annotations_df.columns]
+    no_label_count = dataset_len - sum(label_counts)
+
+    weights = [1./v for v in label_counts]
+    weights = np.array(weights, dtype=np.float32)
+    no_label_weight = 1./no_label_count
+
+    sample_weights = (annotations_df.to_numpy()*weights.T).sum(axis=1)
+    # Replace sample_weights of 0 with no_label_weight
+    # As each of these represents a sample with no 'hot' labels in it
+    sample_weights[sample_weights == 0] = no_label_weight
+
+    return torch.from_numpy(sample_weights), torch.from_numpy(weights)
+
+
+class CustomWeightedRandomSampler(WeightedRandomSampler):
+    """WeightedRandomSampler except allows for more than 2^24 samples to be sampled"""
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def __iter__(self):
+        rand_tensor = np.random.choice(range(0, len(self.weights)),
+                                       size=self.num_samples,
+                                       p=self.weights.numpy() / torch.sum(self.weights).numpy(),
+                                       replace=self.replacement)
+        rand_tensor = torch.from_numpy(rand_tensor)
+        return iter(rand_tensor.tolist())
+
 
 def create_dataloaders(data_folder: Path, test_ratio: float, train_ratio: float, frame_len: int, batch_size: int, shuffle: bool = True):
     """
@@ -175,7 +204,9 @@ def create_dataloaders(data_folder: Path, test_ratio: float, train_ratio: float,
     # Iterate over the split dataset
     for split, durations in split_durations.items():
         dataset = ADTOFFramesDataset(audio_dir, annotations_dir, frame_len, durations, load_mem=True)
-        shuffle_split = shuffle if split != 'test' else False
-        dataloaders[split] = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle_split, num_workers=os.cpu_count())
+        sample_weights, label_weights = get_sample_weights(dataset.annotations_df, len(dataset))
+        sampler = CustomWeightedRandomSampler(weights=sample_weights, num_samples=len(dataset), replacement=True)
+        #shuffle_split = shuffle if split != 'test' else False
+        dataloaders[split] = DataLoader(dataset, batch_size=batch_size, sampler=sampler, num_workers=os.cpu_count())
 
-    return dataloaders
+    return dataloaders, label_weights

@@ -86,11 +86,12 @@ if __name__ == "__main__":
     optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
     # label_weights = torch.tensor([1, 2, 3, 4, 5]).to(device)
     # loss_fn = torch.nn.BCEWithLogitsLoss(pos_weight=label_weights)
-    label_weights = torch.tensor([0.059, 0.15, 0.214, 0.281, 0.296]).to(device)
-    pos_weights = torch.tensor([76.04548784316461, 98.72052530284162, 61.23326264342795, 333.7409675443968, 199.35948788294468]).to(device)
-    loss_fn = torch.nn.BCEWithLogitsLoss(weight=label_weights, pos_weight=pos_weights)
-    #loss_fn = torch.nn.BCEWithLogitsLoss()
-    loaders = loader.create_dataloaders(data_folder, 0.05, 0.9, 512, 2048, True)
+    #label_weights = torch.tensor([0.059, 0.15, 0.214, 0.281, 0.296]).to(device)
+    #pos_weights = torch.tensor([76.04548784316461, 98.72052530284162, 61.23326264342795, 333.7409675443968, 199.35948788294468]).to(device)
+    #loss_fn = torch.nn.BCEWithLogitsLoss(weight=label_weights, pos_weight=pos_weights)
+    # TODO: remove or investigate pos weights, doesn't work
+    loaders, pos_weights = loader.create_dataloaders(data_folder, 0.05, 0.9, 512, 2048, True)
+    loss_fn = torch.nn.BCEWithLogitsLoss()
 
     # TensorBoard
     now = datetime.now()
