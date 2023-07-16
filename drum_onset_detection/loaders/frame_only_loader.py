@@ -1,5 +1,6 @@
 import random
 import sys
+import os
 
 from pathlib import Path
 
@@ -19,13 +20,26 @@ class ADTOFFramesDataset(Dataset):
                  audio_dir: Path,
                  annotations_dir: Path,
                  frame_len: int,
-                 durations: pd.DataFrame):
+                 durations: pd.DataFrame,
+                 load_mem: bool = False):
         self.audio_dir = audio_dir
         self.annotations_dir = annotations_dir
         self.frame_len = frame_len
         self.durations = durations
+        self.load_mem = load_mem
+
+        if self.load_mem:
+            self.annotations_df = pd.DataFrame()
+            print('Loading targets into memory...')
+            # TODO: Figure out a better way of doing this; iteration is an antipattern in Pandas
+            for file_name in durations['file_name']:
+                target_np = np.load(annotations_dir / (file_name + '.npy')).astype(np.float32)
+                self.annotations_df = pd.concat([self.annotations_df, pd.DataFrame(target_np)])
+            print('Done!')
+
         
         # Calculate total number of frames in the dataset
+        # TODO: 'cum_frames'.max()
         self.dataset_len = int(self.durations['duration'].sum() / frame_len)
 
 
@@ -53,11 +67,15 @@ class ADTOFFramesDataset(Dataset):
         audio_frame = torch.FloatTensor(audio_frame_np)
 
         # Read target
-        target_path = self.annotations_dir / (self.durations['file_name'].iloc[path_idx] + '.npy')
-        target_np = np.load(target_path).astype(np.float32)
-        frame_idx = int(frame_start_sample / self.frame_len)
-        target_frame_np = target_np[frame_idx_in_file]
-        target_frame = torch.from_numpy(target_frame_np)
+        if self.load_mem:
+            target_frame_np = self.annotations_df.iloc[idx]
+            target_frame = torch.tensor(target_frame_np.values, dtype=torch.float32)
+        else:
+            target_path = self.annotations_dir / (self.durations['file_name'].iloc[path_idx] + '.npy')
+            target_np = np.load(target_path).astype(np.float32)
+            frame_idx = int(frame_start_sample / self.frame_len)
+            target_frame_np = target_np[frame_idx_in_file]
+            target_frame = torch.from_numpy(target_frame_np)
 
         return audio_frame, target_frame
 
@@ -156,8 +174,8 @@ def create_dataloaders(data_folder: Path, test_ratio: float, train_ratio: float,
 
     # Iterate over the split dataset
     for split, durations in split_durations.items():
-        dataset = ADTOFFramesDataset(audio_dir, annotations_dir, frame_len, durations)
+        dataset = ADTOFFramesDataset(audio_dir, annotations_dir, frame_len, durations, load_mem=True)
         shuffle_split = shuffle if split != 'test' else False
-        dataloaders[split] = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle_split)
+        dataloaders[split] = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle_split, num_workers=os.cpu_count())
 
     return dataloaders
