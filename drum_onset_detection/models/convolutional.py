@@ -83,4 +83,47 @@ class miniMobileNet(nn.Module):
     def __init__(self):
         super().__init__()
 
+        self.stft_extractor = tl.Spectrogram(512, 512 // 10, 512)
+
+        self.model = nn.Sequential(
+            self.conv_block(1, 3, 2),
+
+            self.conv_block(3, 32, 2),
+            self.depthwise_conv_block(32, 64, 1),
+            self.depthwise_conv_block(64, 128, 2),
+            self.depthwise_conv_block(128, 128, 1),
+            self.depthwise_conv_block(128, 256, 2),
+            self.depthwise_conv_block(256, 256, 1),
+            self.depthwise_conv_block(256, 512, 2),
+            self.depthwise_conv_block(512, 512, 1),
+            GlobalAveragePool2d()
+        )
+        self.labeler = nn.Linear(in_features=512, out_features=5)
+
+
+    @staticmethod
+    def conv_block(in_channels, out_channels, stride):
+        return nn.Sequential(
+            nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=3, stride=stride, padding=1, bias=False),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(inplace=True)
+        )
     
+    @staticmethod
+    def depthwise_conv_block(in_channels, out_channels, stride):
+        return nn.Sequential(
+            nn.Conv2d(in_channels=in_channels, out_channels=in_channels, kernel_size=3, stride=stride, padding=1, groups=in_channels, bias=False),
+            nn.BatchNorm2d(in_channels),
+            nn.ReLU(inplace=True),
+            
+            nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=1, stride=1, padding=0, bias=False),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(inplace=True)
+        )
+    
+
+    def forward(self, input):
+        mag_spec = self.stft_extractor(input)
+        features = self.model(mag_spec)
+        labels = self.labeler(features)
+        return labels

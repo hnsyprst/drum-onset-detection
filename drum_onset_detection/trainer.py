@@ -82,8 +82,8 @@ if __name__ == "__main__":
 
     device = 'cuda' if args.gpu and torch.cuda.is_available() else 'cpu'
 
-    model = convolutional.TFDConvNet().to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
+    model = convolutional.miniMobileNet().to(device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     # label_weights = torch.tensor([1, 2, 3, 4, 5]).to(device)
     # loss_fn = torch.nn.BCEWithLogitsLoss(pos_weight=label_weights)
     #label_weights = torch.tensor([0.059, 0.15, 0.214, 0.281, 0.296]).to(device)
