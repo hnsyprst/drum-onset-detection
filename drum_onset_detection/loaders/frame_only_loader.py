@@ -147,6 +147,8 @@ def test_train_valid_split(durations: pd.DataFrame, frame_len: int, test_ratio: 
 
     train_durations = durations.iloc[:train_cutoff_idx]
     valid_durations = durations.iloc[train_cutoff_idx:]
+    # Reset validation set durations / frame offset back to zero
+    valid_durations = prepare_durations_dataframe(valid_durations, frame_len=frame_len)
 
     return {'test': test_durations, 'train': train_durations, 'valid': valid_durations}
 
