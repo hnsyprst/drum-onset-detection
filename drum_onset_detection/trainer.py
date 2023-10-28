@@ -66,7 +66,7 @@ def train(model, optimizer, loss_fn, loaders, n_epochs, device, sw, resume_info,
                 loss.backward()
                 optimizer.step()
         # Save checkpoint here
-        resume_info["train_cycle_complete"] = True
+        save_checkpoint(model, optimizer, epoch, True, output_dir, f"{run_name}_epoch_{epoch}")
 
         # Validation cycle
         print(f"Epoch {epoch}: Starting validation cycle")
@@ -81,11 +81,16 @@ def train(model, optimizer, loss_fn, loaders, n_epochs, device, sw, resume_info,
                 valid_loss.append(loss)
                 valid_accuracy.append(accuracy_value)
                 valid_precision.append(precision_value)
-            sw.add_scalar(f"valid/loss", torch.stack(valid_loss).mean(), epoch)
-            sw.add_scalar(f"valid/accuracy", torch.stack(valid_accuracy).mean(), epoch)
-            sw.add_scalar(f"valid/precision", torch.stack(valid_precision).mean(), epoch)
+
+            avg_valid_loss = torch.stack(valid_loss).mean()
+            avg_valid_acc = torch.stack(valid_accuracy).mean()
+            avg_valid_prec = torch.stack(valid_precision).mean()
+
+            sw.add_scalar(f"valid/loss", avg_valid_loss, epoch)
+            sw.add_scalar(f"valid/accuracy", avg_valid_acc, epoch)
+            sw.add_scalar(f"valid/precision", avg_valid_prec, epoch)
             # Save checkpoint here
-            resume_info["train_cycle_complete"] = False
+        save_checkpoint(model, optimizer, epoch, False, output_dir, f"{run_name}_epoch_{epoch}_val_a_{avg_valid_acc}_p_{avg_valid_prec}")
 
     print(f"Finished training.")
     # Test cycle
@@ -101,9 +106,10 @@ def train(model, optimizer, loss_fn, loaders, n_epochs, device, sw, resume_info,
             test_loss.append(loss)
             test_accuracy.append(accuracy_value)
             test_precision.append(precision_value)
-            sw.add_scalar(f"valid/loss", torch.stack(test_loss).mean(), 0)
-            sw.add_scalar(f"valid/accuracy", torch.stack(test_accuracy).mean(), 0)
-            sw.add_scalar(f"valid/precision", torch.stack(test_precision).mean(), 0)
+
+        sw.add_scalar(f"valid/loss", torch.stack(test_loss).mean(), 0)
+        sw.add_scalar(f"valid/accuracy", torch.stack(test_accuracy).mean(), 0)
+        sw.add_scalar(f"valid/precision", torch.stack(test_precision).mean(), 0)
 
 if __name__ == "__main__":
     # Simulate arguments
